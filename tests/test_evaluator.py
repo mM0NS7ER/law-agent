@@ -17,6 +17,48 @@ from src.models import (
 
 class MockRetriever:
     def retrieve(self, query: str) -> list[RetrievedArticle]:
+        if query == "偷越国境罪怎么判？":
+            return [
+                RetrievedArticle(
+                    id=322,
+                    content="test",
+                    rrf_score=0.05,
+                    source="both",
+                ),
+                RetrievedArticle(
+                    id=232,
+                    content="test",
+                    rrf_score=0.03,
+                    source="both",
+                ),
+                RetrievedArticle(
+                    id=1,
+                    content="test",
+                    rrf_score=0.02,
+                    source="both",
+                ),
+            ]
+        if query == "盗窃罪立案标准？":
+            return [
+                RetrievedArticle(
+                    id=1,
+                    content="test",
+                    rrf_score=0.05,
+                    source="both",
+                ),
+                RetrievedArticle(
+                    id=2,
+                    content="test",
+                    rrf_score=0.04,
+                    source="both",
+                ),
+                RetrievedArticle(
+                    id=264,
+                    content="test",
+                    rrf_score=0.03,
+                    source="both",
+                ),
+            ]
         return []
 
 
@@ -75,13 +117,13 @@ class TestEvaluatorRetrieval:
     def annotated_path(self, tmp_path: Path) -> str:
         """Create test data with known ground truth for hand verification.
 
-        For item 1: ground truth "第322条" appears at rank 1 (0-indexed).
+        For item 1: ground truth article id 322 appears at rank 1 (0-indexed).
             Recall@1 = 1/1 = 1.0
             Recall@5 = 1/1 = 1.0
             MRR = 1/1 = 1.0
             NDCG@5: DCG = 1/log2(2) = 1.0, IDCG = 1/log2(2) = 1.0, NDCG = 1.0
 
-        For item 2: ground truth "第264条" appears at rank 3 (0-indexed).
+        For item 2: ground truth article id 264 appears at rank 3 (0-indexed).
             Recall@1 = 0/1 = 0.0
             Recall@5 = 1/1 = 1.0
             MRR = 1/3 = 0.333...
@@ -91,22 +133,12 @@ class TestEvaluatorRetrieval:
             AnnotatedItem(
                 question="偷越国境罪怎么判？",
                 answer="根据第322条...",
-                ground_truth_articles=["第322条"],
-                retrieved_candidates=[
-                    {"id": 322, "title": "第322条", "rrf_score": 0.05},
-                    {"id": 232, "title": "第232条", "rrf_score": 0.03},
-                    {"id": 1, "title": "第1条", "rrf_score": 0.02},
-                ],
+                ground_truth_articles=[322],
             ),
             AnnotatedItem(
                 question="盗窃罪立案标准？",
                 answer="根据第264条...",
-                ground_truth_articles=["第264条"],
-                retrieved_candidates=[
-                    {"id": 1, "title": "第1条", "rrf_score": 0.05},
-                    {"id": 2, "title": "第2条", "rrf_score": 0.04},
-                    {"id": 264, "title": "第264条", "rrf_score": 0.03},
-                ],
+                ground_truth_articles=[264],
             ),
         ]
         path = tmp_path / "test_eval_annotated.json"
@@ -132,8 +164,8 @@ class TestEvaluatorRetrieval:
 
     def test_ndcg_calculation(self, evaluator: Evaluator) -> None:
         """Verify NDCG formula matches hand calculation."""
-        ranked = ["第2条", "第1条", "第322条", "第264条"]
-        gt_set = {"第322条", "第264条"}
+        ranked = [2, 1, 322, 264]
+        gt_set = {322, 264}
 
         # Formula: 1/log2(i+2) where i is 0-indexed position.
         # pos 2: "第322条" -> 1/log2(4) = 0.5
@@ -149,11 +181,11 @@ class TestEvaluatorRetrieval:
         assert result == pytest.approx(expected_ndcg)
 
     def test_ndcg_empty_gt(self, evaluator: Evaluator) -> None:
-        result = Evaluator._ndcg(["第1条"], set(), 5)
+        result = Evaluator._ndcg([1], set(), 5)
         assert result == 0.0
 
     def test_ndcg_k_greater_than_list(self, evaluator: Evaluator) -> None:
-        result = Evaluator._ndcg(["第322条"], {"第322条"}, 10)
+        result = Evaluator._ndcg([322], {322}, 10)
         assert result == 1.0  # perfect ranking
 
     def test_evaluate_retrieval_empty_data(self, evaluator: Evaluator, tmp_path: Path) -> None:

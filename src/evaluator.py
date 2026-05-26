@@ -40,29 +40,28 @@ class Evaluator:
         recalls: dict[int, list[float]] = {1: [], 5: [], 10: []}
         rr_list: list[float] = []
         ndcg_5_list: list[float] = []
-        ndcg_10_list: list[float] = []
 
         for item in data:
             gt_set = set(item.ground_truth_articles)
-            candidates = item.retrieved_candidates
-            titles = [c["title"] for c in candidates]
+
+            retrieved = self.retriever.retrieve(item.question)
+            candidate_ids = [int(r.id) for r in retrieved]
 
             for k in [1, 5, 10]:
-                hits = len(gt_set & set(titles[:k]))
+                hits = len(gt_set & set(candidate_ids[:k]))
                 denominator = len(gt_set) if gt_set else 1
                 recalls[k].append(hits / denominator)
 
-            # MRR
+            # MRR (mean reciprocal rank)
             rr = 0.0
-            for rank, title in enumerate(titles, start=1):
-                if title in gt_set:
+            for rank, article_id in enumerate(candidate_ids, start=1):
+                if article_id in gt_set:
                     rr = 1.0 / rank
                     break
             rr_list.append(rr)
 
-            # NDCG
-            ndcg_5_list.append(self._ndcg(titles, gt_set, 5))
-            ndcg_10_list.append(self._ndcg(titles, gt_set, 10))
+            # NDCG using retrieved ranking vs. ideal based on ground truth
+            ndcg_5_list.append(self._ndcg(candidate_ids, gt_set, 5))
 
         n = len(data)
         return RetrievalMetrics(
@@ -71,11 +70,10 @@ class Evaluator:
             recall_at_10=sum(recalls[10]) / n,
             mrr=sum(rr_list) / n,
             ndcg_at_5=sum(ndcg_5_list) / n,
-            ndcg_at_10=sum(ndcg_10_list) / n,
         )
 
     @staticmethod
-    def _ndcg(ranked: list[str], gt_set: set[str], k: int) -> float:
+    def _ndcg(ranked: list[int], gt_set: set[int], k: int) -> float:
         """Compute NDCG@k."""
         dcg = sum(
             1.0 / math.log2(i + 2) for i, t in enumerate(ranked[:k]) if t in gt_set

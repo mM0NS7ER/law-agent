@@ -82,7 +82,6 @@ class Retriever:
             results.append(
                 RetrievedArticle(
                     id=article.id,
-                    title=article.title,
                     content=article.content,
                     rrf_score=rrf_score,
                     source=source,

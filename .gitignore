@@ -20,3 +20,4 @@ data/models/
 doc/
 logs/
 .agent/
+test_dev.py

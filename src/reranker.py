@@ -26,13 +26,12 @@ class Reranker:
         if not articles:
             return []
 
-        pairs = [(query, f"{a.title} {a.content}") for a in articles]
+        pairs = [(query, a.content) for a in articles]
         scores = self.model.predict(pairs, batch_size=8, show_progress_bar=False)
 
         scored_articles = [
             RerankedArticle(
                 id=art.id,
-                title=art.title,
                 content=art.content,
                 relevance_score=float(score),
                 rrf_score=art.rrf_score,

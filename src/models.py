@@ -7,7 +7,6 @@ class Article(BaseModel):
     """A legal article from the knowledge base."""
 
     id: int
-    title: str
     content: str
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -24,7 +23,6 @@ class RetrievedArticle(BaseModel):
     """Retrieval result after RRF fusion."""
 
     id: int
-    title: str
     content: str
     rrf_score: float
     source: Literal["bm25", "vector", "both"]
@@ -34,7 +32,6 @@ class RerankedArticle(BaseModel):
     """Reranked article with relevance score."""
 
     id: int
-    title: str
     content: str
     relevance_score: float = Field(description="Reranker output 0~1 score")
     rrf_score: float = Field(description="Original RRF score, kept for analysis")
@@ -61,8 +58,7 @@ class AnnotatedItem(BaseModel):
 
     question: str
     answer: str
-    ground_truth_articles: list[str] = Field(default_factory=list)
-    retrieved_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    ground_truth_articles: list[int] = Field(default_factory=list)
 
 
 class RetrievalMetrics(BaseModel):
@@ -73,7 +69,6 @@ class RetrievalMetrics(BaseModel):
     recall_at_10: float
     mrr: float
     ndcg_at_5: float
-    ndcg_at_10: float
 
 
 class GenerationMetrics(BaseModel):

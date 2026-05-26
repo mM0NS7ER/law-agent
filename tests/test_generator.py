@@ -27,14 +27,12 @@ def sample_articles() -> list[RerankedArticle]:
     return [
         RerankedArticle(
             id=322,
-            title="第322条",
             content="违反国（边）境管理法规，偷越国（边）境，情节严重的，处一年以下有期徒刑",
             relevance_score=0.92,
             rrf_score=0.0327,
         ),
         RerankedArticle(
             id=232,
-            title="第232条",
             content="故意杀人的，处死刑、无期徒刑或者十年以上有期徒刑",
             relevance_score=0.15,
             rrf_score=0.0163,
@@ -45,8 +43,8 @@ def sample_articles() -> list[RerankedArticle]:
 class TestGenerator:
     def test_build_context(self, sample_articles: list[RerankedArticle]) -> None:
         ctx = Generator._build_context(sample_articles)
-        assert "【第322条】" in ctx
-        assert "【第232条】" in ctx
+        assert "【322】" in ctx
+        assert "【232】" in ctx
         assert "\n\n" in ctx
 
     def test_generate_success(self, sample_articles: list[RerankedArticle]) -> None:

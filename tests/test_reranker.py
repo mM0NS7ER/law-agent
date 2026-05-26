@@ -10,21 +10,18 @@ def sample_articles() -> list[RetrievedArticle]:
     return [
         RetrievedArticle(
             id=322,
-            title="第322条",
             content="违反国（边）境管理法规，偷越国（边）境，情节严重的，处一年以下有期徒刑",
             rrf_score=0.0327,
             source="both",
         ),
         RetrievedArticle(
             id=232,
-            title="第232条",
             content="故意杀人的，处死刑、无期徒刑或者十年以上有期徒刑",
             rrf_score=0.0163,
             source="bm25",
         ),
         RetrievedArticle(
             id=264,
-            title="第264条",
             content="盗窃公私财物，数额较大的，处三年以下有期徒刑",
             rrf_score=0.0161,
             source="vector",

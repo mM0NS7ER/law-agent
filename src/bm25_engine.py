@@ -2,18 +2,18 @@ import pickle
 import warnings
 from pathlib import Path
 
-import jieba
-import numpy as np
-from rank_bm25 import BM25Okapi
-
-from src.exceptions import IndexNotFoundError
-
 warnings.filterwarnings(
     "ignore",
     message="pkg_resources is deprecated as an API.*",
     category=UserWarning,
     module="jieba._compat",
 )
+
+import jieba
+import numpy as np
+from rank_bm25 import BM25Okapi
+
+from src.exceptions import IndexNotFoundError
 
 
 class BM25Engine:

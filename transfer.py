@@ -32,7 +32,7 @@ def convert_penal_code_docx_to_jsonl(docx_path, output_path):
     
     # 4. 清洗并构建JSON
     with open(output_path, 'w', encoding='utf-8') as f:
-        article_id = 0
+        article_id = 1
         main_article_count = 0
         sub_article_count = 0
         for idx, match in enumerate(matches):
@@ -42,16 +42,10 @@ def convert_penal_code_docx_to_jsonl(docx_path, output_path):
             if not block:
                 continue
 
-            # 以首次换行拆分 title/content；若无换行则尽量在条标题后按空格拆分
-            lines = [line.strip() for line in block.split('\n') if line.strip()]
-            title = lines[0] if lines else match.group(0)
-            content = "\n".join(lines[1:]).strip()
-            if not content:
-                content = block[len(title):].strip()
+            # 以整条分块作为该法条完整内容，保留原始换行
+            content = block
 
-            # 有些数据源把整条挤在一行，至少保留该条原文，不再因空内容被丢弃
-            if not content:
-                content = block
+            title = block.split('\n', 1)[0].strip()
 
             if SUB_ARTICLE_RE.match(title):
                 sub_article_count += 1
@@ -60,7 +54,6 @@ def convert_penal_code_docx_to_jsonl(docx_path, output_path):
 
             article_data = {
                 "id": article_id,
-                "title": title,
                 "content": content,
                 "metadata": {
                     "law": "中华人民共和国刑法",

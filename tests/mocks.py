@@ -79,7 +79,6 @@ class MockReranker:
             scored.append(
                 RerankedArticle(
                     id=art.id,
-                    title=art.title,
                     content=art.content,
                     relevance_score=score,
                     rrf_score=art.rrf_score,

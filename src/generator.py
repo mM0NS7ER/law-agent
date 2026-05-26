@@ -60,7 +60,7 @@ class Generator:
 
     @staticmethod
     def _build_context(articles: list[RerankedArticle]) -> str:
-        parts = [f"【{a.title}】{a.content}" for a in articles]
+        parts = [f"【{a.id}】{a.content}" for a in articles]
         return "\n\n".join(parts)
 
     @staticmethod

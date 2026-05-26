@@ -23,7 +23,8 @@ def main() -> None:
         for line in f:
             item = json.loads(line)
             articles.append(item)
-            corpus.append(f"{item['title']} {item['content']}")
+            # The source corpus no longer contains a `title` field — use `content` only.
+            corpus.append(item.get("content", ""))
 
     passage_ids = [a["id"] for a in articles]
     logger.info(f"Loaded {len(articles)} articles from {config.corpus_path}")

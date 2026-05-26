@@ -44,9 +44,8 @@ class TestExceptions:
 
 class TestModels:
     def test_article_creation(self) -> None:
-        a = Article(id=1, title="第1条", content="test content")
+        a = Article(id=1, content="test content")
         assert a.id == 1
-        assert a.title == "第1条"
         assert a.metadata == {}
 
     def test_intent_result(self) -> None:
@@ -63,14 +62,13 @@ class TestModels:
 
     def test_retrieved_article(self) -> None:
         a = RetrievedArticle(
-            id=322, title="第322条", content="test", rrf_score=0.05, source="both"
+            id=322, content="test", rrf_score=0.05, source="both"
         )
         assert a.source == "both"
 
     def test_reranked_article(self) -> None:
         a = RerankedArticle(
             id=322,
-            title="第322条",
             content="test",
             relevance_score=0.92,
             rrf_score=0.05,
@@ -89,10 +87,9 @@ class TestModels:
         item = AnnotatedItem(
             question="test?",
             answer="test answer",
-            ground_truth_articles=["第322条"],
-            retrieved_candidates=[{"id": 322, "title": "第322条", "rrf_score": 0.05}],
+            ground_truth_articles=[322],
         )
-        assert item.ground_truth_articles == ["第322条"]
+        assert item.ground_truth_articles == [322]
 
     def test_retrieval_metrics(self) -> None:
         m = RetrievalMetrics(

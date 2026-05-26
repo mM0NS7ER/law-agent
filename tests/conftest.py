@@ -11,15 +11,14 @@ from src.models import Article
 def sample_articles() -> list[Article]:
     """Return a small set of test legal articles."""
     return [
-        Article(id=1, title="第1条", content="为了惩罚犯罪，保护人民"),
-        Article(id=2, title="第2条", content="中华人民共和国刑法的任务"),
+        Article(id=1, content="为了惩罚犯罪，保护人民"),
+        Article(id=2, content="中华人民共和国刑法的任务"),
         Article(
             id=322,
-            title="第322条",
             content="违反国（边）境管理法规，偷越国（边）境，情节严重的，处一年以下有期徒刑",
         ),
-        Article(id=232, title="第232条", content="故意杀人的，处死刑、无期徒刑或者十年以上有期徒刑"),
-        Article(id=264, title="第264条", content="盗窃公私财物，数额较大的，处三年以下有期徒刑"),
+        Article(id=232, content="故意杀人的，处死刑、无期徒刑或者十年以上有期徒刑"),
+        Article(id=264, content="盗窃公私财物，数额较大的，处三年以下有期徒刑"),
     ]
 
 

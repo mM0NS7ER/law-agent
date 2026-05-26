@@ -55,16 +55,16 @@ class TestRetriever:
     @pytest.fixture
     def articles(self) -> dict[int, Article]:
         return {
-            1: Article(id=1, title="第1条", content="为了惩罚犯罪，保护人民"),
-            2: Article(id=2, title="第2条", content="中华人民共和国刑法的任务"),
-            322: Article(id=322, title="第322条", content="违反国（边）境管理法规，偷越国（边）境"),
-            232: Article(id=232, title="第232条", content="故意杀人的，处死刑"),
-            264: Article(id=264, title="第264条", content="盗窃公私财物，数额较大的"),
+            1: Article(id=1, content="为了惩罚犯罪，保护人民"),
+            2: Article(id=2, content="中华人民共和国刑法的任务"),
+            322: Article(id=322, content="违反国（边）境管理法规，偷越国（边）境"),
+            232: Article(id=232, content="故意杀人的，处死刑"),
+            264: Article(id=264, content="盗窃公私财物，数额较大的"),
         }
 
     @pytest.fixture
     def retriever(self, articles: dict[int, Article]) -> Retriever:
-        corpus = [f"{a.title} {a.content}" for a in articles.values()]
+        corpus = [a.content for a in articles.values()]
         pids = list(articles.keys())
         bm25 = MockBM25Engine(corpus, pids)
         faiss = MockFaissEngine(pids)

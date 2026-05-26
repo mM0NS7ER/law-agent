@@ -15,7 +15,11 @@ class EmbeddingEngine:
                 f"Failed to load embedding model '{model_name}'. "
                 f"Ensure HF_ENDPOINT is set for mirror access. Error: {e}"
             ) from e
-        self.dimension: int = self.model.get_sentence_embedding_dimension()
+        get_dimension = getattr(self.model, "get_embedding_dimension", None)
+        if callable(get_dimension):
+            self.dimension = int(get_dimension())
+        else:
+            self.dimension = int(self.model.get_sentence_embedding_dimension())
 
     def encode(
         self,

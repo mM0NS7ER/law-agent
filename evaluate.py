@@ -31,7 +31,6 @@ def _load_modules(
     articles_map = {
         a["id"]: Article(
             id=a["id"],
-            title=a["title"],
             content=a["content"],
             metadata=a.get("metadata", {}),
         )

@@ -31,12 +31,17 @@ KEY_MESSAGES = "session_messages"
 TITLE_MAX_CHARS = 30
 
 
+def _article_label(article_id: int, content: str, max_chars: int = 36) -> str:
+    snippet = content[:max_chars] + ("..." if len(content) > max_chars else "")
+    return f"第{article_id}条 | {snippet}"
+
+
 def _show_citations(articles: list[RerankedArticle]) -> None:
     if not articles:
         return
     st.subheader("相关法条")
     for art in articles:
-        with st.expander(f"{art.title} (相关度: {art.relevance_score:.3f})"):
+        with st.expander(f"{_article_label(art.id, art.content)} (相关度: {art.relevance_score:.3f})"):
             st.write(art.content)
 
 
@@ -116,7 +121,6 @@ def main() -> None:
         for a in raw:
             articles_map[a["id"]] = Article(
                 id=a["id"],
-                title=a["title"],
                 content=a["content"],
                 metadata=a.get("metadata", {}),
             )
@@ -242,7 +246,7 @@ def main() -> None:
                 sm.append_trace(run_path, {
                     "event": "rerank",
                     "topk": len(ranked),
-                    "articles": [{"title": a.title, "score": a.relevance_score} for a in ranked],
+                    "articles": [{"id": a.id, "score": a.relevance_score} for a in ranked],
                 })
 
                 # 4. Generate
@@ -279,7 +283,7 @@ def main() -> None:
                 "intent_confidence": intent.confidence,
                 "retrieval_count": len(retrieved),
                 "rerank_topk": len(ranked),
-                "rerank_articles": [{"title": a.title, "score": a.relevance_score} for a in ranked],
+                "rerank_articles": [{"id": a.id, "score": a.relevance_score} for a in ranked],
                 "answer": result.answer,
                 "citations": [c.article_title for c in (result.citations or [])],
                 "status": "success",
