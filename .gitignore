@@ -19,3 +19,4 @@ data/models/
 
 doc/
 logs/
+.agent/
