@@ -84,12 +84,21 @@ def main() -> None:
         "--output", default="data/eval_result.json",
         help="Path to output evaluation results",
     )
+    parser.add_argument(
+        "--judge-model", default=None,
+        help="Override the judge model (default: from config, currently deepseek-v4-pro)",
+    )
     args = parser.parse_args()
 
     logger.info("Loading modules for %s evaluation...", args.mode)
     retriever, reranker, generator, embedding_engine, llm_client = _load_modules(config)
 
-    evaluator = Evaluator(retriever, reranker, generator, embedding_engine, llm_client, judge_model=config.deepseek_model)
+    judge_model = args.judge_model or config.judge_model
+    evaluator = Evaluator(
+        retriever, reranker, generator, embedding_engine, llm_client,
+        judge_model=judge_model,
+        judge_max_retries=config.judge_max_retries,
+    )
 
     if args.mode == "retrieval":
         logger.info("Running retrieval evaluation on %s", args.annotated)

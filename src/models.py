@@ -71,6 +71,17 @@ class RetrievalMetrics(BaseModel):
     ndcg_at_5: float
 
 
+class JudgeResult(BaseModel):
+    """Per-sample LLM-as-Judge evaluation result."""
+
+    question: str
+    reference: str
+    generated: str
+    correctness: float = Field(ge=0.0, le=1.0)
+    completeness: float = Field(ge=0.0, le=1.0)
+    error: str | None = None
+
+
 class GenerationMetrics(BaseModel):
     """Generation evaluation metrics."""
 
@@ -78,3 +89,5 @@ class GenerationMetrics(BaseModel):
     completeness_score: float = Field(description="LLM-as-Judge completeness score 0~1")
     avg_prompt_tokens: int
     avg_completion_tokens: int
+    sample_count: int = 0
+    samples: list[JudgeResult] = Field(default_factory=list)

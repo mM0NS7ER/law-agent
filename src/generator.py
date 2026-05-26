@@ -1,4 +1,5 @@
 import json
+from collections.abc import Generator
 
 from pydantic import ValidationError
 
@@ -62,6 +63,26 @@ class Generator:
     def _build_context(articles: list[RerankedArticle]) -> str:
         parts = [f"【{a.id}】{a.content}" for a in articles]
         return "\n\n".join(parts)
+
+    def generate_stream(
+        self,
+        query: str,
+        articles: list[RerankedArticle],
+    ) -> Generator[str, None, None]:
+        """Generate answer with streaming output.
+
+        Yields text chunks as they arrive from the LLM.
+        Use with st.write_stream() in Streamlit.
+        Citations are derived from the top-ranked articles.
+        """
+        context = self._build_context(articles)
+        prompt = PromptLoader.load("answer_generation_streaming", context=context, query=query)
+
+        yield from self.llm.chat_stream(
+            messages=[{"role": "user", "content": prompt}],
+            model=self.model,
+            temperature=0.3,
+        )
 
     @staticmethod
     def _parse_response(raw: str) -> GenerationResult:

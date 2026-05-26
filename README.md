@@ -157,6 +157,11 @@ python evaluate.py --mode retrieval --annotated test_small_annotated.json --
 
 - **生成评测**：LLM-as-Judge 对正确性和完整性打分（需 API Key）
 
+```bash
+python evaluate.py --mode end2end --test data/test_e2e.json --output data/eval_e2e_result.json
+```
+
+
 - **半自动标注**：检索器生成候选列表，人工填写 ground truth
 
 ## 测试

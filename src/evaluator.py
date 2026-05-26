@@ -1,14 +1,17 @@
 import json
 import math
+import logging
 from pathlib import Path
 
 from src.embedding_engine import EmbeddingEngine
 from src.generator import Generator
 from src.llm_client import LLMClient
-from src.models import AnnotatedItem, GenerationMetrics, RetrievalMetrics
+from src.models import AnnotatedItem, GenerationMetrics, JudgeResult, RetrievalMetrics
 from src.prompt_loader import PromptLoader
 from src.reranker import Reranker
 from src.retriever import Retriever
+
+logger = logging.getLogger(__name__)
 
 
 class Evaluator:
@@ -22,6 +25,7 @@ class Evaluator:
         embedding_engine: EmbeddingEngine,
         llm_client: LLMClient,
         judge_model: str = "deepseek-chat",
+        judge_max_retries: int = 3,
     ) -> None:
         self.retriever = retriever
         self.reranker = reranker
@@ -29,6 +33,7 @@ class Evaluator:
         self.embedding_engine = embedding_engine
         self.llm_judge = llm_client
         self.judge_model = judge_model
+        self.judge_max_retries = judge_max_retries
 
     # ========== Retrieval Metrics ==========
 
@@ -87,7 +92,10 @@ class Evaluator:
     def evaluate_generation(
         self, test_path: str, output_path: str
     ) -> GenerationMetrics:
-        """Run full RAG pipeline on the test set and evaluate with LLM-as-Judge."""
+        """Run full RAG pipeline on the test set and evaluate with LLM-as-Judge.
+
+        Saves per-sample JudgeResult in the output file alongside aggregate metrics.
+        """
         with open(test_path, encoding="utf-8-sig") as f:
             test_data = json.load(f)
 
@@ -95,8 +103,13 @@ class Evaluator:
         completeness_scores: list[float] = []
         prompt_tokens_list: list[int] = []
         completion_tokens_list: list[int] = []
+        samples: list[JudgeResult] = []
 
-        for item in test_data:
+        total = len(test_data)
+        logger.info("Starting end-to-end evaluation on %d samples with judge model %s",
+                     total, self.judge_model)
+
+        for idx, item in enumerate(test_data, start=1):
             query = item["question"]
             reference = item.get("answer", "")
 
@@ -105,17 +118,34 @@ class Evaluator:
             ranked = self.reranker.rerank(query, retrieved, topk=5)
             try:
                 result = self.generator.generate(query, ranked)
-            except Exception:
+            except Exception as exc:
+                logger.warning("[%d/%d] Generation failed for: %s — %s",
+                               idx, total, query[:60], exc)
                 continue
 
             prompt_tokens_list.append(result.prompt_tokens)
             completion_tokens_list.append(result.completion_tokens)
 
-            correctness, completeness = self._judge_single(
+            correctness, completeness, error = self._judge_single(
                 query, result.answer, reference
             )
-            correctness_scores.append(correctness)
-            completeness_scores.append(completeness)
+
+            if error:
+                logger.warning("[%d/%d] Judge failed: %s", idx, total, error)
+            else:
+                correctness_scores.append(correctness)
+                completeness_scores.append(completeness)
+                logger.info("[%d/%d] correctness=%.2f completeness=%.2f",
+                            idx, total, correctness, completeness)
+
+            samples.append(JudgeResult(
+                question=query,
+                reference=reference,
+                generated=result.answer,
+                correctness=correctness,
+                completeness=completeness,
+                error=error,
+            ))
 
         n = max(len(correctness_scores), 1)
         metrics = GenerationMetrics(
@@ -123,29 +153,58 @@ class Evaluator:
             completeness_score=sum(completeness_scores) / n,
             avg_prompt_tokens=int(sum(prompt_tokens_list) / n) if prompt_tokens_list else 0,
             avg_completion_tokens=int(sum(completion_tokens_list) / n) if completion_tokens_list else 0,
+            sample_count=len(samples),
+            samples=samples,
         )
 
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(metrics.model_dump(), f, ensure_ascii=False, indent=2)
 
+        logger.info("Evaluation complete. Results saved to %s", output_path)
         return metrics
 
     def _judge_single(
         self, question: str, generated: str, reference: str
-    ) -> tuple[float, float]:
-        """Use LLM-as-Judge to score correctness and completeness."""
+    ) -> tuple[float, float, str | None]:
+        """Use LLM-as-Judge to score correctness and completeness.
+
+        Retries on JSON parse failure up to judge_max_retries.
+        Returns (correctness, completeness, error_message).
+        error_message is None on success.
+        """
         prompt = PromptLoader.load(
             "llm_as_judge",
             question=question,
             reference=reference,
             generated=generated,
         )
-        raw = self.llm_judge.chat(
-            messages=[{"role": "user", "content": prompt}],
-            model=self.judge_model,
-            response_format={"type": "json_object"},
-            temperature=0.0,
-        )
-        data = json.loads(raw)
-        return float(data["correctness"]), float(data["completeness"])
+
+        last_error: str | None = None
+        for attempt in range(1, self.judge_max_retries + 1):
+            try:
+                raw = self.llm_judge.chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    model=self.judge_model,
+                    response_format={"type": "json_object"},
+                    temperature=0.0,
+                )
+                data = json.loads(raw)
+                correctness = float(data["correctness"])
+                completeness = float(data["completeness"])
+                # Clamp to valid range
+                correctness = max(0.0, min(1.0, correctness))
+                completeness = max(0.0, min(1.0, completeness))
+                return correctness, completeness, None
+            except (json.JSONDecodeError, KeyError, ValueError, TypeError) as e:
+                last_error = str(e)
+                logger.debug("Judge attempt %d/%d failed: %s",
+                             attempt, self.judge_max_retries, last_error)
+                continue
+            except Exception as e:
+                last_error = str(e)
+                logger.debug("Judge attempt %d/%d unexpected error: %s",
+                             attempt, self.judge_max_retries, last_error)
+                continue
+
+        return 0.0, 0.0, last_error

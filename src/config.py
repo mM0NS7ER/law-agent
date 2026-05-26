@@ -54,6 +54,10 @@ class AppConfig(BaseSettings):
     # Generation
     generation_max_retries: int = 3
 
+    # Evaluation (LLM-as-Judge)
+    judge_model: str = "deepseek-v4-pro"
+    judge_max_retries: int = 3
+
 
 _config: AppConfig | None = None
 

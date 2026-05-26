@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from typing import Any
 
 from openai import OpenAI
@@ -46,3 +47,34 @@ class LLMClient:
                 "completion_tokens": resp.usage.completion_tokens or 0,
             }
         return resp.choices[0].message.content or ""
+
+    def chat_stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str,
+        temperature: float = 0.3,
+        max_tokens: int | None = None,
+    ) -> Generator[str, None, None]:
+        """Stream ChatCompletion chunks and yield delta text.
+
+        Stores token usage from the final chunk in self.last_usage.
+        """
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "messages": messages,
+            "temperature": temperature,
+            "timeout": self.timeout,
+            "stream": True,
+        }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+
+        stream = self.client.chat.completions.create(**kwargs)
+        for chunk in stream:
+            if chunk.choices and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+            if chunk.usage:
+                self.last_usage = {
+                    "prompt_tokens": chunk.usage.prompt_tokens or 0,
+                    "completion_tokens": chunk.usage.completion_tokens or 0,
+                }

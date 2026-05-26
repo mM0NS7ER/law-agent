@@ -11,13 +11,12 @@ import streamlit as st
 from src.bm25_engine import BM25Engine
 from src.config import get_config
 from src.embedding_engine import EmbeddingEngine
-from src.exceptions import GenerationError
 from src.faiss_engine import FaissEngine
 from src.generator import Generator
 from src.intent_classifier import IntentClassifier
 from src.llm_client import LLMClient
 from src.logger import get_logger
-from src.models import Article, GenerationResult, RerankedArticle
+from src.models import Article
 from src.reranker import Reranker
 from src.retriever import Retriever
 from src.session_manager import SessionManager
@@ -30,25 +29,6 @@ KEY_MESSAGES = "session_messages"
 
 TITLE_MAX_CHARS = 30
 
-
-def _article_label(article_id: int, content: str, max_chars: int = 36) -> str:
-    snippet = content[:max_chars] + ("..." if len(content) > max_chars else "")
-    return f"第{article_id}条 | {snippet}"
-
-
-def _show_citations(articles: list[RerankedArticle]) -> None:
-    if not articles:
-        return
-    st.subheader("相关法条")
-    for art in articles:
-        with st.expander(f"{_article_label(art.id, art.content)} (相关度: {art.relevance_score:.3f})"):
-            st.write(art.content)
-
-
-def _show_citations_from_result(result: GenerationResult) -> None:
-    if result.citations:
-        titles = ", ".join(c.article_title for c in result.citations)
-        st.caption(f"引用法条：{titles}")
 
 
 # ---------------------------------------------------------------------------
@@ -249,32 +229,26 @@ def main() -> None:
                     "articles": [{"id": a.id, "score": a.relevance_score} for a in ranked],
                 })
 
-                # 4. Generate
-                try:
-                    result = generator.generate(query, ranked, session_id=session_id)
-                except GenerationError as e:
-                    err_msg = f"回答生成失败，请稍后重试。错误详情：{e}"
-                    st.error(err_msg)
-                    sm.append_trace(run_path, {"event": "generation_error", "error": str(e)})
-                    sm.write_report(run_path, {
-                        "question": query,
-                        "intent": intent.label,
-                        "intent_confidence": intent.confidence,
-                        "retrieval_count": len(retrieved),
-                        "rerank_topk": len(ranked),
-                        "error": str(e),
-                        "status": "error",
-                    })
-                    _show_citations(ranked)
-                    session_data["messages"].append({"role": "assistant", "content": err_msg})
-                    sm.save_session(session_data)
-                    st.session_state[KEY_MESSAGES] = session_data["messages"]
-                    st.rerun()
-
-            # Answer
-            st.markdown(result.answer)
-            _show_citations_from_result(result)
-            _show_citations(ranked)
+            # 4. Generate with streaming (outside spinner for incremental output)
+            try:
+                answer = st.write_stream(generator.generate_stream(query, ranked))
+            except Exception as e:
+                err_msg = f"回答生成失败，请稍后重试。错误详情：{e}"
+                st.error(err_msg)
+                sm.append_trace(run_path, {"event": "generation_error", "error": str(e)})
+                sm.write_report(run_path, {
+                    "question": query,
+                    "intent": intent.label,
+                    "intent_confidence": intent.confidence,
+                    "retrieval_count": len(retrieved),
+                    "rerank_topk": len(ranked),
+                    "error": str(e),
+                    "status": "error",
+                })
+                session_data["messages"].append({"role": "assistant", "content": err_msg})
+                sm.save_session(session_data)
+                st.session_state[KEY_MESSAGES] = session_data["messages"]
+                st.rerun()
 
             sm.append_trace(run_path, {"event": "generation_complete"})
             sm.write_report(run_path, {
@@ -284,15 +258,15 @@ def main() -> None:
                 "retrieval_count": len(retrieved),
                 "rerank_topk": len(ranked),
                 "rerank_articles": [{"id": a.id, "score": a.relevance_score} for a in ranked],
-                "answer": result.answer,
-                "citations": [c.article_title for c in (result.citations or [])],
+                "answer": answer,
+                "citations": [f"第{a.id}条" for a in ranked],
                 "status": "success",
             })
 
         # Save assistant message
         session_data = sm.load_session(session_id)
         if session_data is not None:
-            session_data["messages"].append({"role": "assistant", "content": result.answer})
+            session_data["messages"].append({"role": "assistant", "content": answer})
             sm.save_session(session_data)
             st.session_state[KEY_MESSAGES] = session_data["messages"]
 
